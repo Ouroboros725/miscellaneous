@@ -1,4 +1,4 @@
-package miscellaneous.segmentdensity;
+package fsk.ouroboros725.miscellaneous.segmentdensity;
 
 
 import java.util.ArrayList;

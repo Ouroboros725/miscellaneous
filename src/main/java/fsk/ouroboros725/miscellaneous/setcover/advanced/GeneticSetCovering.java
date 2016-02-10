@@ -1,92 +1,48 @@
-package miscellaneous.setcover.normal;
+package fsk.ouroboros725.miscellaneous.setcover.advanced;
 
-import java.util.Comparator;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Random;
 
-//genetic set covering based on J.E. Beasley's method
+//J.E. Beasley's Genetic Set Covering algorithm
 public class GeneticSetCovering {
 	private static final Random RND = new Random();  //random operator
 	
-	public static class Set   //for sorting purpose
-	{
-		public double cost = 0;
-		public int count = 0;
-	}
-	
-	public static final Comparator<Set> setCmp = new Comparator<Set>()  //sorting comparator for class Set
-	{
-		public int compare(Set a, Set b)
-		{
-			if(a.cost - b.cost <= 0.000001)
-			{
-				if(a.count > b.count)
-					return -1;
-				else if(a.count < b.count)
-					return 1;
-				else
-					return 0;
-			}
-			else if(a.cost > b.cost && a.cost - b.cost > 0.000001)
-				return 1;
-			else
-				return -1;
-		}
-	};
-	
-	public static final Comparator<Integer> intCmp = new Comparator<Integer>() //sorting comparator for Integer
-	{
-		public int compare(Integer a, Integer b)
-		{
-			return a.compareTo(b);
-		}
-	};
-	
-	//fitness function calculating the number of duplicate elements
-	private static double fitness(int[] candidate, int[][] state, int[] eleEle)  
+	//fitness function calculate the cost of a solution
+	private static double fitness(int[] candidate, double[] cost)
 	{
 		double result = 0;
-		int[] coverCount = new int[eleEle.length];
 		
 		for(int i = 0; i < candidate.length; i++)
 		{
-			if(candidate[i] == 1)
-			{
-				for(int j = 0; j < eleEle.length; j++)
-				{
-					if(eleEle[j] != 0)
-						continue;
-					if(state[i][j] != 0)
-					{
-						coverCount[j]++;
-					}
-				}
-			}
-		}
-		
-		for(int i = 0; i < coverCount.length; i++)
-		{
-			if(coverCount[i] > 1)
-				result += (coverCount[i] - 1);
+			if(candidate[i] < 0)
+				continue;
+			
+			result += candidate[i] * cost[i];
 		}
 		
 		return result;
 	}
 	
-	//corssover two results
+	//crossover process
+	//p1: parent1
+	//p2: parent2
+	//f1: parent1's fitness value
+	//f2: parents'2 fitness value
 	private static int[] crossover(int[] p1, int[] p2, double f1, double f2)
 	{
 		int l = p1.length;
 		int[] c = new int[l];
 		
-		double t = f2 / (f1 + f2);
+		double t = f2 / (f1 + f2); //probability to select the gene from p1
 		
-		for(int i = 0; i < l; i++)
+		for(int i = 0; i < l; i++)  //update all genes (bits)
 		{
-			if(p1[i] == p2[i])
+			if(p1[i] == p2[i]) //if the genes from two parents are the same, choose them 
 				c[i] = p1[i];
-			else
+			else  //otherwise select the gene with certain probability
 			{
 				double p = RND.nextDouble();
 				if( p < t)
@@ -99,7 +55,7 @@ public class GeneticSetCovering {
 		return c;
 	}
 	
-	//check if one result is duplicated
+	//check if a new solution has already in the current population, previous removed solutions will not be counted
 	private static boolean duplicate(int[][] population, int[] candidate)
 	{
 		boolean result = false;
@@ -125,12 +81,46 @@ public class GeneticSetCovering {
 		return result;
 	}
 	
-	//make one result feasible (all elements covered)
-	private static void feasible(int[] candidate, int[][] state, double[] cost, int[] coverCount, Integer[] sortedEle, Integer[] sortedSet)
+	//make a solution feasible, greedy way to have the uncovered rows get covered 
+	//candidate: candidate solution
+	//state: problem space
+	//cost: cost of all columns
+	//eleSet: removed columns
+	//eleEle: removed rows 
+	//sortedEle: rows sorted  
+	//sortedSet: columns sorted
+	private static void feasible(int[] candidate, int[][] state, double[] cost, int[] eleSet, int[] eleEle, Integer[] sortedEle, Integer[] sortedSet)
 	{
 		int numSet = state.length;
 		int numEle = state[0].length;
 		
+		//remove the removed rows
+		int[] coverCount = new int[numEle];  //the number of columns that currently cover a row
+		for(int i = 0; i < numEle; i++)
+		{
+			if(eleEle[i] != 0)
+				coverCount[i] = -1;
+		}
+		
+		//find out the uncovered rows
+		for(int i = 0; i < numSet; i++)
+		{
+			if(eleSet[i] != 0)
+				continue;
+			if(candidate[i] > 0)
+			{
+				for(int j = 0; j < numEle; j++)
+				{
+					if(eleEle[j] != 0)
+						continue;
+					
+					if(state[i][j] != 0)
+						coverCount[j]++;
+				}
+			}
+		}
+		
+		//first greedy set covering method to cover uncovered rows
 		for(int i = 0; i < sortedEle.length; i++)
 		{
 			int indEle = sortedEle[i];
@@ -178,6 +168,7 @@ public class GeneticSetCovering {
 			}
 		}
 
+		//remove the duplicate columns in the solution
 		for(int i = 0; i < numSet; i++)
 		{
 			int index = sortedSet[numSet-i-1];
@@ -215,7 +206,7 @@ public class GeneticSetCovering {
 		} 
 	}
 	
-	//tournament method selecting two results to crossover
+	//binary tournament way to select two solutions from the population to crossover
 	private static int[] tournament(int[][] population, double[] fitness, int size)
 	{
 		int[] result = new int[2];
@@ -225,7 +216,7 @@ public class GeneticSetCovering {
 		HashSet<Integer> s = new HashSet<Integer>();
 		
 		int i = 0;
-		while(i < size)
+		while(i < size)  //randomly divide the population into two candidate pools
 		{
 			int k = RND.nextInt(population.length);
 			int j = RND.nextInt(population.length);
@@ -242,6 +233,7 @@ public class GeneticSetCovering {
 			}
 		}
 		
+		//select one best candidate from each candidate pool
 		double max1 = 0;
 		double max2 = 0;
 		int index1 = 0;
@@ -264,6 +256,7 @@ public class GeneticSetCovering {
 			}
 		}
 		
+		//generate the parents to crossover
 		for(int j = 0; j < population[0].length; j++)
 		{
 			result[0] = index1;
@@ -274,14 +267,20 @@ public class GeneticSetCovering {
 	}
 	
 	//generate the initial population
+	//state: problem space
+	//eleEle: removed rows
+	//sortedSet: sorted columns
+	//weight: the number of columns that cover a row
+	//result: result population
 	private static void population(int[][] state, int[] eleEle, Integer[] sortedSet, int[] weight, int[][] result)
 	{
 		int numSet = state.length;
 		int numEle = state[0].length;
 		
-		for(int i = 0; i < result.length; i++)
+		for(int i = 0; i < result.length; i++)  //generate every solution in population
 		{
-			int[] coverCount  = new int[numEle];
+			//eliminate the removed rows
+			int[] coverCount  = new int[numEle];  //the number of columns that currently cover a row
 			for(int j = 0 ; j < numEle; j++)
 			{
 				if(eleEle[j] != 0)
@@ -290,11 +289,13 @@ public class GeneticSetCovering {
 				}
 			}
 			
+			//find a column to cover a row
 			for(int j = 0; j < numEle; j++)
 			{
 				if(coverCount[j] != 0)
 					continue;
 				
+				//randomly find the column among elite columns
 				int k = 0;
 				if(weight[j] >= 5)
 				{
@@ -326,6 +327,7 @@ public class GeneticSetCovering {
 				}
 			}
 			
+			//count the number of columns in the solution
 			int k = 0;
 			int[] c = new int[numSet];
 			for(int j = 0; j < numSet; j++)
@@ -337,6 +339,7 @@ public class GeneticSetCovering {
 				}
 			}
 			
+			//randomly go through all columns in the solution, remove the duplicates
 			while(k > 0)
 			{
 				int d = RND.nextInt(k);
@@ -383,7 +386,8 @@ public class GeneticSetCovering {
 		}
 	}
 	
-	//mutate one result
+	//mutation
+	//mutate the elite columns with a certain probability, according to the number of new descendants generated
 	private static void mutation(int mf, int mc, double mg, int t, int[] candidate, int[] mutate)
 	{	
 		double rate = Math.ceil(mf / (1 + Math.exp( - 4 * mg * (t - mc) / mf))) / (candidate.length * 1.0);
@@ -399,29 +403,44 @@ public class GeneticSetCovering {
 		}
 	}
 	
-	//main process of genetic set covering
-	public static int[] genetic(int[][] state, double cost[])
+	//main genetic algorithm process
+	public static double[] genetic(int[][] state, double cost[], double[] parameters)
 	{
-		int numSet = state.length;     //number of sets to cover elements
-		int numEle = state[0].length;  //number of elements to be covered
-		double totalFit = 0;  //the sum of fitness value of all results in population
-		double avgFit = 0;   //the average of fitness value
-		int belowFit = 0;   //the number of results below the average fitness value
-		double bestFit = Double.MAX_VALUE;  //the best fitness value so far
-		int result = -1;  //the index of the final result set in the population
+		//record the start cpu time
+		long time = 0;
+		long bestTime = 0;
+		ThreadMXBean bean = ManagementFactory.getThreadMXBean( );
+	    if(bean.isCurrentThreadCpuTimeSupported())
+	        time = bean.getCurrentThreadCpuTime();
+	    
+	    //get the mutation parameters
+		int mf = (int)parameters[0];
+		int mc = (int)parameters[1]; 
+		double mg = parameters[2];
 		
-		Integer[] sortedSet = new Integer[numSet];   //sorted sets
+		int numSet = state.length;  //number of columns
+		int numEle = state[0].length;  //number of rows
+		double totalFit = 0;  //total fitness value of the population
+		double avgFit = 0;  //the average fitness value of the population
+		int belowFit = 0;  //the number of solutions in the population with a fitness below the average fitness of the population 
+		double bestFit = Double.MAX_VALUE;  //the best fitness value of the population
+		double[] results = new double[3];  //the results of the genetic set covering
+		
+		//sort the columns by their costs increasingly, same costs by the number of rows they can cover decreasingly
+		Integer[] sortedSet = new Integer[numSet];
 		for(int i = 0; i < numSet; i++)
 			sortedSet[i] = i;
 		
-		Integer[] sortedEle = new Integer[numEle];   //sorted elements
+		//sort the rows by the number of columns that can cover them
+		Integer[] sortedEle = new Integer[numEle];
 		for(int i = 0; i < numEle; i++)
 			sortedEle[i] = i;
 		
-		int[] eleEle = new int[numEle];  //sets that never cover any elements
-		int[] eleSet = new int[numSet];  //elements that never being covered
+		int[] eleEle = new int[numEle];  //the rows removed
+		int[] eleSet = new int[numSet];  //the columns removed
 		
-		int[] weightSet = new int[numSet];   //the number of elements one set cover
+		//the number of columns that cover a row
+		int[] weightSet = new int[numSet];
 		for(int i = 0; i < numSet; i++)
 		{
 			for(int j = 0; j < numEle; j++)
@@ -436,7 +455,8 @@ public class GeneticSetCovering {
 				eleSet[i] = 1;
 		}
 		
-		int[] weightEle = new int[numEle];  //the number of sets that cover one element
+		//the number of rows that a column can cover
+		int[] weightEle = new int[numEle];
 		for(int i = 0; i < numEle; i++)
 		{
 			for(int j = 0; j < numSet; j++)
@@ -451,10 +471,14 @@ public class GeneticSetCovering {
 				eleEle[i] = 1;
 		}
 		
-		HashMap<Integer, Integer> cmpSet = new HashMap<Integer, Integer>();
+		// sort the rows and columns
+		HashMap<Integer, Tools.Set> cmpSet = new HashMap<Integer, Tools.Set>();
 		for(int i = 0; i < numSet; i++)
 		{
-			cmpSet.put(i, (int)cost[i]);
+			Tools.Set s = new Tools.Set();
+			s.cost = cost[i];
+			s.count = weightSet[i];
+			cmpSet.put(i, s);
 		}
 		
 		HashMap<Integer, Integer> cmpEle = new HashMap<Integer, Integer>();
@@ -463,10 +487,11 @@ public class GeneticSetCovering {
 			cmpEle.put(i, weightEle[i]);
 		}
 		
-		new Quicksort<Integer, Integer>().sort(sortedSet, cmpSet, intCmp);  //sort the sets
-		new Quicksort<Integer, Integer>().sort(sortedEle, cmpEle, intCmp);  //sort the elements
+		new Quicksort<Tools.Set, Integer>().sort(sortedSet, cmpSet, Tools.setCmp);
+		new Quicksort<Integer, Integer>().sort(sortedEle, cmpEle, Tools.intCmp);
 		
-		int[] mutate = new int[numSet];  //select the sets that are worth mutating
+		//generate the elite columns
+		int[] mutate = new int[numSet];
 		for(int i = 0; i < numEle; i++)
 		{
 			if(eleEle[i] != 0)
@@ -494,8 +519,9 @@ public class GeneticSetCovering {
 			}
 		}
 		
-		int[][] population = new int[100][numSet]; //population
-		for(int i = 0; i < numSet; i++)  //eliminate the useless sets
+		//generate the initial population
+		int[][] population = new int[100][numSet];
+		for(int i = 0; i < numSet; i++)
 		{
 			if(eleSet[i] != 0)
 			{
@@ -506,12 +532,13 @@ public class GeneticSetCovering {
 			}
 		}
 		
-		population(state, eleEle, sortedSet, weightEle, population);  //generate the inital population
+		population(state, eleEle, sortedSet, weightEle, population);
 		
+		//calculate the fitness information of the population
 		double[] fitness = new double[100];
 		for(int i = 0; i < 100; i++)
 		{
-			fitness[i] = fitness(population[i], state, eleEle);
+			fitness[i] = fitness(population[i], cost);
 			totalFit += fitness[i];
 		}
 		
@@ -523,21 +550,23 @@ public class GeneticSetCovering {
 			else if(fitness[i] < bestFit)
 			{
 				bestFit = fitness[i];
-				result = i;
 			}
 		}
 		
-		int t = 0;
-		while(t < 100000)  //continue the new result generating process until 100000 non-duplicate results were generated
+		//main genetic body
+		int t = 0;  //terminate until 100000 new descendants generated
+		while(t < 100000)
 		{
-			int[] parents = tournament(population, fitness, 2);  //select two results to crossover
+			int[] parents = tournament(population, fitness, 2); //tournament generate two parents
 			
-			//crossover
+			//crossover to generate the child 
 			int[] candidate = crossover(population[parents[0]], population[parents[1]], fitness[parents[0]], fitness[parents[1]]);
 			
-			mutation(10, 200, 1.3, t, candidate, mutate); //mutate
+			//mutate the child
+			mutation(mf, mc, mg, t, candidate, mutate);
 			
-			int[] coverCount = new int[numEle];  //calculate the number of sets that cover each element
+			//make the child a feasible solution
+			int[] coverCount = new int[numEle];
 			for(int i = 0; i < numEle; i++)
 			{
 				if(eleEle[i] != 0)
@@ -560,14 +589,16 @@ public class GeneticSetCovering {
 				}
 			}
 			
-			feasible(candidate, state, cost, coverCount, sortedEle, sortedSet);  //make all elements covered
+			feasible(candidate, state, cost, eleSet, eleEle, sortedEle, sortedSet);
 			
-			if(!duplicate(population, candidate))  //if the new result is not duplicated
+			//check if the child is a duplicate of the population, if it is not, update the fitness information of the population
+			//randomly select a solution in population with a below average fitness value, replace this solution with the new child 
+			if(!duplicate(population, candidate))
 			{
 				int index = -1;
 				int k = RND.nextInt(belowFit);
 				
-				for(int i = 0; i < 100; i++)  //random select one result in the population with a below average fitness value to be replaced by the new result
+				for(int i = 0; i < 100; i++)
 				{
 					if(fitness[i] > avgFit && k > 0)
 					{
@@ -578,10 +609,9 @@ public class GeneticSetCovering {
 					}
 				}
 				
-				//update the information of the population
 				totalFit -= fitness[index];
 				population[index] = candidate;
-				fitness[index] = fitness(candidate, state, eleEle);
+				fitness[index] = fitness(candidate, cost);
 				totalFit += fitness[index];
 				avgFit = totalFit / 100;
 				belowFit = 0;
@@ -592,15 +622,26 @@ public class GeneticSetCovering {
 				}
 				if(fitness[index] < bestFit)
 				{
+					//record the cpu time that find the best solution
+					if(bean.isCurrentThreadCpuTimeSupported())
+				        bestTime = bean.getCurrentThreadCpuTime() - time;
 					bestFit = fitness[index];
-					result = index;
 				}
 				
 				t++;
 			}
 		}
 		
-		return population[result];
+		//calculate the end cpu time
+		if(bean.isCurrentThreadCpuTimeSupported())
+	        time = bean.getCurrentThreadCpuTime() - time;
+		
+		//return the cpu time and best result
+		results[0] = bestFit;
+		results[1] = bestTime;
+		results[2] = time;
+		
+		return results;
 	}
 }
 

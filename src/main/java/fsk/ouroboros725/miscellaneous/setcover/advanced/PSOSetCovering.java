@@ -1,4 +1,4 @@
-package miscellaneous.setcover.advanced;
+package fsk.ouroboros725.miscellaneous.setcover.advanced;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
