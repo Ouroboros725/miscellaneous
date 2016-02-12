@@ -1,4 +1,4 @@
-package fsk.ouroboros725.miscellaneous.setcover.normal;
+package com.ouroboros.miscellaneous.setcover.normal;
 
 import java.util.Comparator;
 import java.util.HashMap;

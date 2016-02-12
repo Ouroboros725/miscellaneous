@@ -1,4 +1,4 @@
-package fsk.ouroboros725.miscellaneous.setcover.advanced;
+package com.ouroboros.miscellaneous.setcover.advanced;
 
 import java.util.Random;
 

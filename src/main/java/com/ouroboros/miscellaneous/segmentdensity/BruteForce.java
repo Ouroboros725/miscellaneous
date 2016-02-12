@@ -1,4 +1,4 @@
-package fsk.ouroboros725.miscellaneous.segmentdensity;
+package com.ouroboros.miscellaneous.segmentdensity;
 
 public class BruteForce {
 

@@ -1,4 +1,4 @@
-package fsk.ouroboros725.miscellaneous.stack;
+package com.ouroboros.miscellaneous.stack;
 
 import java.util.ArrayList;
 import java.util.List;

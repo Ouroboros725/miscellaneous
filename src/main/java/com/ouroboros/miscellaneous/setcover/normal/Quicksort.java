@@ -1,10 +1,10 @@
-package fsk.ouroboros725.miscellaneous.setcover.advanced;
+package com.ouroboros.miscellaneous.setcover.normal;
 
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Random;
- 
-//quick sort for any type of cost
+
+//quick sort algorithm
 public class Quicksort <T, S> {
 	 public static final Random RND = new Random();
 	 
@@ -39,6 +39,7 @@ public class Quicksort <T, S> {
          qsort(array, weight, 0, array.length - 1, cmp);
      }
      
+     //reverse an array
      public void reverse(S[] array) {
     	 S temp = null;
     	 
